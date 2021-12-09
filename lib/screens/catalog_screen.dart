@@ -5,6 +5,7 @@ import 'package:neetchan/models/board.dart';
 import 'package:neetchan/models/catalog.dart';
 import 'package:neetchan/screens/gallery_screen.dart';
 import 'package:neetchan/screens/thread_screen.dart';
+import 'package:neetchan/services/app_settings.dart';
 import 'package:neetchan/services/file_controller.dart';
 import 'package:neetchan/services/get_data_api.dart';
 import 'package:neetchan/utils/convert_units.dart';
@@ -116,11 +117,14 @@ class CatalogItem extends StatelessWidget {
           //minHeight: 260,
           ),
       child: Card(
-        //elevation: 0,
+        elevation: 2.0,
         child: InkWell(
           onTap: () {
-            item.accessedOn = DateTime.now().millisecondsSinceEpoch;
-            context.read<FileController>().writeHistory(item.toJson());
+            // pause logging history
+            if (!context.read<AppSettings>().isCognitoMode) {
+              item.accessedOn = DateTime.now().millisecondsSinceEpoch;
+              context.read<FileController>().writeHistory(item.toJson());
+            }
 
             var json = jsonEncode(item.toJson());
             debugPrint('\n');

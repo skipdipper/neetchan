@@ -24,14 +24,14 @@ class NeetChan extends StatelessWidget {
           create: (context) => ReplyPost(),
         ),
         ChangeNotifierProvider(
-          create: (context) => ThemeSettings(),
+          create: (context) => AppSettings(),
         ),
         ChangeNotifierProvider(
           create: (context) => FileController(),
         ),
       ],
       builder: (context, _) {
-        final themeProvider = Provider.of<ThemeSettings>(context);
+        final themeProvider = Provider.of<AppSettings>(context);
         return MaterialApp(
           title: 'NeetChan',
           themeMode: themeProvider.themeMode,

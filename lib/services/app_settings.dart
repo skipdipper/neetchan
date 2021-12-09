@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class ThemeSettings extends ChangeNotifier {
+class AppSettings extends ChangeNotifier {
   ThemeMode themeMode = ThemeMode.light;
+  bool incognitoMode = false;
 
   SharedPreferences? preferences;
 
   bool get isDarkMode => themeMode == ThemeMode.dark;
+  bool get isCognitoMode => incognitoMode;
 
-  ThemeSettings() {
+  AppSettings() {
     loadSettingsFromPrefs();
   }
 
@@ -22,6 +24,9 @@ class ThemeSettings extends ChangeNotifier {
     await initPreferences();
     bool darkTheme = preferences?.getBool('darkTheme') ?? false;
     themeMode = darkTheme ? ThemeMode.dark : ThemeMode.light;
+
+    incognitoMode = preferences?.getBool('incognitoMode') ?? false;
+
     notifyListeners();
   }
 
@@ -35,6 +40,17 @@ class ThemeSettings extends ChangeNotifier {
   void toggleTheme(bool isOn) {
     themeMode = isOn ? ThemeMode.dark : ThemeMode.light;
     saveSettingstoPrefs();
+    notifyListeners();
+  }
+
+  saveIncognitotoPrefs() async {
+    await initPreferences();
+    preferences?.setBool('incognitoMode', incognitoMode);
+  }
+
+  void toggleIncognito() {
+    incognitoMode = !incognitoMode;
+    saveIncognitotoPrefs();
     notifyListeners();
   }
 }

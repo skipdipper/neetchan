@@ -53,19 +53,25 @@ class _ThreadState extends State<Thread> {
           widget.no.toString(),
         ),
         actions: [
-          IconButton(
-            onPressed: () async {
+          IconButton(onPressed: () async {
+            final file = context.read<FileController>();
+
+            if (!file.bookmarks.containsKey(widget.op.no.toString())) {
               final replies = context.read<ApiData>().currentThread;
               final res = replies.map((reply) {
                 return reply.toJson();
               }).toList();
 
-              context
-                  .read<FileController>()
-                  .writeBookMark(widget.no, widget.op.toJson(), res);
-            },
-            icon: const Icon(Icons.bookmark_border),
-          ),
+              file.writeBookMark(widget.no, widget.op.toJson(), res);
+
+            } else {
+              file.deleteBookmarkItem(widget.op.no.toString());
+            }
+          }, icon: Consumer<FileController>(builder: (context, value, child) {
+            return value.bookmarks.containsKey(widget.op.no.toString())
+                ? const Icon(Icons.bookmark)
+                : const Icon(Icons.bookmark_border);
+          })),
           IconButton(
             onPressed: () => scrollToTop(),
             icon: const Icon(
@@ -227,4 +233,4 @@ class ThreadItem extends StatelessWidget {
   }
 }
 
-enum ThreadMenuOptions {reply, quote, imageInfo, openLink, copyLink}
+enum ThreadMenuOptions { reply, quote, imageInfo, openLink, copyLink }
