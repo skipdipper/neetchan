@@ -1,8 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.shutin.neetchan">
+
+   <uses-permission android:name="android.permission.INTERNET"/>
+
+   <!--Save to /storage/emulated/0/neetchan-->
+   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
    <application
         android:label="neetchan"
         android:icon="@mipmap/ic_launcher">
+        android:requestLegacyExternalStorage="true">
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"
@@ -38,6 +45,4 @@
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
-
-    <uses-permission android:name="android.permission.INTERNET"/>
 </manifest>

@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:neetchan/models/post.dart';
 import 'package:neetchan/services/get_data_api.dart';
+import 'package:neetchan/utils/convert_units.dart';
 import 'package:neetchan/widgets/chewie_video_player.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
+import 'package:neetchan/utils/file_manager.dart';
 
 class Gallery extends StatefulWidget {
   const Gallery({Key? key, required this.no, required this.board})
@@ -19,11 +21,6 @@ class Gallery extends StatefulWidget {
 
 class _GalleryState extends State<Gallery> {
   List<Post> images = [];
-
-  String getImageUrl(int tim, String ext) {
-    String imageUrl = 'https://i.4cdn.org/a/' + tim.toString() + ext;
-    return imageUrl;
-  }
 
   int initialIndex = 0;
   int imagesLength = 0;
@@ -79,18 +76,49 @@ class _GalleryState extends State<Gallery> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            Consumer<ApiData>(builder: (context, value, child) {
-              return Text('${value.imageIndex + 1} / ${value.images.length}');
-            }),
-            // Text(
-            //   '${context.watch<ApiData>().imageIndex + 1} / ${context.watch<ApiData>().images.length}',
-            //   //'${initialIndex + 1}/$imagesLength',
-            //   style: const TextStyle(
-            //     fontSize: 11,
-            //   ),
-            // ),
+            Consumer<ApiData>(
+              builder: (context, value, child) {
+                return value.images.isEmpty || value.error
+                    ? const Text('')
+                    : Text('${value.imageIndex + 1} / ${value.images.length}');
+              },
+            ),
           ],
         ),
+        actions: [
+          IconButton(onPressed: () {}, icon: const Icon(Icons.share)),
+          IconButton(
+              onPressed: () async {
+                final imageIndex = context.read<ApiData>().currentImageIndex;
+                final image = context.read<ApiData>().images[imageIndex];
+                final fileName = image.filename;
+                final ext = image.ext;
+                final tim = image.tim;
+                final url = context.read<ApiData>().getImageUrl(tim!, ext!);
+
+                // TODO: snackbar on success or failure
+                if (await FileUtil.saveImageToStorage(fileName!, ext, url)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Saved as "$fileName$ext"',
+                        textAlign: TextAlign.left,
+                      ),
+                      duration: const Duration(milliseconds: 2000),
+                      elevation: 2,
+                      behavior: SnackBarBehavior.floating,
+                      margin: const EdgeInsets.symmetric(horizontal: 60),
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(
+                          Radius.circular(20),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.save)),
+        ],
       ),
       body: Consumer<ApiData>(
         builder: (context, value, child) {
@@ -137,6 +165,9 @@ class _GalleryState extends State<Gallery> {
                                   // TODO: return thumbnai as loading indicator instead
                                   return const LinearProgressIndicator();
                                 },
+                                errorBuilder: (context, exception, stackTrace) {
+                                  return const Icon(Icons.image);
+                                },
                               ),
                             ),
                           );
@@ -144,6 +175,42 @@ class _GalleryState extends State<Gallery> {
                       },
                     );
         },
+      ),
+      bottomNavigationBar: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Flexible(
+            child: Consumer<ApiData>(
+              builder: (context, value, child) {
+                return value.images.isEmpty || value.error
+                    ? const Text('')
+                    : Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${value.images[value.imageIndex].filename}',
+                              style: const TextStyle(
+                                  overflow: TextOverflow.ellipsis),
+                            ),
+                            Text(
+                              formatBytes(
+                                  value.images[value.imageIndex].filesize!, 1),
+                            ),
+                          ],
+                        ),
+                      );
+              },
+            ),
+          ),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.view_module),
+          ),
+        ],
       ),
     );
   }

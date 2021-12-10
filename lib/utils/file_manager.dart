@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:http/http.dart' as http;
 
 class FileUtil {
   static String fileName = "history_log.json";
@@ -115,5 +117,56 @@ class FileUtil {
       final book = jsonEncode(bookmark);
       await file.writeAsString(book);
     }
+  }
+
+  // Make single permission request
+  static Future<bool> requestPermission(Permission permission) async {
+    if (await permission.isGranted) {
+      return true;
+    } else {
+      var result = await permission.request();
+      if (result.isGranted) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+  }
+
+  static Future<bool> saveImageToStorage(String fileName, String ext, String url) async {
+    try {
+      if (await requestPermission(Permission.storage)) {
+        debugPrint('-------------------PERMISSION GRANTED ------------------');
+        const folder = "NeetChan";
+        final directory = Directory('storage/emulated/0/$folder');
+
+        if (!await directory.exists()) {
+          await directory.create(recursive: true);
+        }
+
+        if (await directory.exists()) {
+          debugPrint('-------------------DIRECTORY EXISTS ------------------');
+          File image = File('${directory.path}/$fileName$ext');
+          //TODO: check if image cached
+          final response = await http.get(Uri.parse(url));
+          await image.writeAsBytes(response.bodyBytes);
+          // TODO; use image_gallery_saver or gallery_saver plugin instead
+          return true;
+        }
+      } else {
+        // permission not granted
+        return false;
+      }
+    } catch (e) {
+
+      throw Exception(e);
+    }
+
+    return false;
+  }
+
+  static Future<String> get getCacheDirectoryPath async {
+    final directory = await getTemporaryDirectory();
+    return directory.path;
   }
 }
