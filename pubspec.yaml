@@ -38,6 +38,9 @@ dependencies:
   url_launcher: ^6.0.17
   path_provider: ^2.0.4
   permission_handler: ^7.0.0
+  #gallery_saver: ^2.3.2
+  gallery_saver_webm:
+    path: packages/gallery_saver_webm
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

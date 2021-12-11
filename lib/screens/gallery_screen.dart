@@ -96,6 +96,8 @@ class _GalleryState extends State<Gallery> {
                 final tim = image.tim;
                 final url = context.read<ApiData>().getImageUrl(tim!, ext!);
 
+                // TODO: check live image cache
+
                 // TODO: snackbar on success or failure
                 if (await FileUtil.saveImageToStorage(fileName!, ext, url)) {
                   ScaffoldMessenger.of(context).showSnackBar(

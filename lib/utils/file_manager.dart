@@ -5,6 +5,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
+//import 'package:gallery_saver/gallery_saver.dart';
+import 'package:gallery_saver_webm/gallery_saver.dart';
 
 class FileUtil {
   static String fileName = "history_log.json";
@@ -133,7 +135,8 @@ class FileUtil {
     }
   }
 
-  static Future<bool> saveImageToStorage(String fileName, String ext, String url) async {
+  static Future<bool> saveImageToStorage(
+      String fileName, String ext, String url) async {
     try {
       if (await requestPermission(Permission.storage)) {
         debugPrint('-------------------PERMISSION GRANTED ------------------');
@@ -146,11 +149,19 @@ class FileUtil {
 
         if (await directory.exists()) {
           debugPrint('-------------------DIRECTORY EXISTS ------------------');
-          File image = File('${directory.path}/$fileName$ext');
+          final path = '${directory.path}/$fileName$ext';
+          File image = File(path);
           //TODO: check if image cached
-          final response = await http.get(Uri.parse(url));
-          await image.writeAsBytes(response.bodyBytes);
-          // TODO; use image_gallery_saver or gallery_saver plugin instead
+          //final response = await http.get(Uri.parse(url));
+          //await image.writeAsBytes(response.bodyBytes);
+
+          if (ext == '.webm') { 
+            final res = await GallerySaver.saveVideo(url, albumName: folder, fileName: fileName);
+            debugPrint('$res');
+          } else {
+            final res = await GallerySaver.saveImage(url, albumName: folder, fileName: fileName);
+            debugPrint('$res');
+          }
           return true;
         }
       } else {
@@ -158,7 +169,6 @@ class FileUtil {
         return false;
       }
     } catch (e) {
-
       throw Exception(e);
     }
 

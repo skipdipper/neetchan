@@ -142,6 +142,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  gallery_saver_webm:
+    dependency: "direct main"
+    description:
+      path: "packages/gallery_saver_webm"
+      relative: true
+    source: path
+    version: "2.3.2"
   html:
     dependency: transitive
     description:
