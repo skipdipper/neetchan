@@ -140,8 +140,8 @@ class CatalogItem extends StatelessWidget {
                 ),
               ),
             ).then((value) {
-              context.read<ApiData>().clearCurrentThread();
-              context.read<ApiData>().clearCurrentImages();
+              context.read<ApiData>().clearThread();
+              debugPrint('---------THREAD SCREEN POP-----------');
               // Clear repliesMap
             });
           },
@@ -189,8 +189,7 @@ class CatalogItem extends StatelessWidget {
                                   Gallery(no: item.no, board: item.board!),
                             ),
                           ).then((value) {
-                            context.read<ApiData>().clearCurrentThread();
-                            context.read<ApiData>().clearCurrentImages();
+                            context.read<ApiData>().clearThread();
                             debugPrint(
                                 '----POP index: ${context.read<ApiData>().currentImageIndex}---------');
                           });

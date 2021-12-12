@@ -118,9 +118,7 @@ class BookMarkItem extends StatelessWidget {
             ),
           ),
         ).then((value) {
-          context.read<ApiData>().clearCurrentThread(); // back to empty []
-          context.read<ApiData>().clearCurrentImages();
-          // reset error to false
+          context.read<ApiData>().clearThread();
           // Clear repliesMap
         });
       },

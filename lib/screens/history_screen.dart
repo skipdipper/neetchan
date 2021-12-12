@@ -49,7 +49,9 @@ class BuildHistory extends StatelessWidget {
                       // Todo: hot fix history OP on pressed: context.read<ApiData>().changeBoard(item.board ?? 'a');
                       // Catalog item = value.historyLogs[index];
                       //return CatalogItem(item: item);
-                      return HistoryItem(item: item, index: value.historyLogs.length - index - 1);
+                      return HistoryItem(
+                          item: item,
+                          index: value.historyLogs.length - index - 1);
                     },
                   );
           },
@@ -137,8 +139,8 @@ class HistoryItem extends StatelessWidget {
             ),
           ),
         ).then((value) {
-          context.read<ApiData>().clearCurrentThread(); 
-          context.read<ApiData>().clearCurrentImages();
+          context.read<ApiData>().clearThread();
+          debugPrint('---------HISTORY THREAD SCREEN POP-----------');
           // reset error to false
           // Clear repliesMap
         });

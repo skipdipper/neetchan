@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -82,11 +83,11 @@ class ApiData extends ChangeNotifier {
 
   // Fetches all OPs for every page on a single board catalog
   Future<void> fetchCatalog() async {
-    final response =
-        await http.get(Uri.parse('https://a.4cdn.org/$board/catalog.json'));
+    try {
+      final response =
+          await http.get(Uri.parse('https://a.4cdn.org/$board/catalog.json'));
 
-    if (response.statusCode == 200) {
-      try {
+      if (response.statusCode == HttpStatus.ok) {
         final parsed = jsonDecode(response.body);
 
         // Iterate through each page
@@ -108,16 +109,19 @@ class ApiData extends ChangeNotifier {
           }).toList());
         });
         catalog = catalogList;
-      } catch (e) {
+      } else {
         error = true;
-        errorMessage = e.toString();
-        //throw Exception('Error occured parsing Catalog format');
-        debugPrint('Error occured parsing Catalog format');
-        throw Exception(e);
+        errorMessage = 'Failed to load /$board/';
       }
-    } else {
+    } on SocketException {
       error = true;
-      throw Exception('Failed to load Catalog');
+      errorMessage = 'Check your Internet Connection';
+    } on FormatException {
+      error = true;
+      errorMessage = 'Error occured parsing Catalog format';
+    } catch (e) {
+      error = true;
+      errorMessage = e.toString();
     }
 
     notifyListeners();
@@ -127,29 +131,32 @@ class ApiData extends ChangeNotifier {
     // final response =
     //     await http.get(Uri.parse('https://a.4cdn.org/$board/thread/$no.json'));
 
-    final response = await http
-        .get(Uri.parse('https://a.4cdn.org/$thisBoard/thread/$no.json'));
+    try {
+      final response = await http
+          .get(Uri.parse('https://a.4cdn.org/$thisBoard/thread/$no.json'));
 
-    if (response.statusCode == 200) {
-      try {
+      if (response.statusCode == HttpStatus.ok) {
         final parsed = jsonDecode(response.body);
         List<Post> newThread = [];
         for (var post in parsed['posts']) {
           newThread.add(Post.fromJson(post));
         }
         thread = newThread;
-
         // Add Map entry
         threads[no] = newThread;
-      } catch (e) {
+      } else {
         error = true;
-        errorMessage = e.toString();
-        throw Exception(e);
-        //throw Exception('Error occured parsing Thread format');
+        errorMessage = 'Too bad the thread was pruned';
       }
-    } else {
+    } on SocketException {
       error = true;
-      throw Exception('Failed to load Thread');
+      errorMessage = 'Check your Internet Connection';
+    } on FormatException {
+      error = true;
+      errorMessage = 'Error occured parsing Thread format';
+    } catch (e) {
+      error = true;
+      errorMessage = e.toString();
     }
 
     notifyListeners();
@@ -175,6 +182,15 @@ class ApiData extends ChangeNotifier {
       // Get the current image index
       imageIndex = images.indexWhere((post) => post.no == no);
     }
+  }
+
+  void clearThread() {
+    error = false;
+    errorMessage = '';
+    thread = [];
+    images = [];
+    imageIndex = 0;
+    notifyListeners();
   }
 
   // String getThumbnailUrl(int tim) {

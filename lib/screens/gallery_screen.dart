@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:neetchan/models/post.dart';
@@ -127,7 +129,9 @@ class _GalleryState extends State<Gallery> {
           return value.images.isEmpty && !value.error
               ? const Center(child: CircularProgressIndicator())
               : value.error
-                  ? Text(value.errorMessage)
+                  ? Center(
+                      child: Text(value.errorMessage),
+                    )
                   : PageView.builder(
                       controller: pageController,
                       onPageChanged: (index) {

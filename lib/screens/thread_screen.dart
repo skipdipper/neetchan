@@ -63,7 +63,6 @@ class _ThreadState extends State<Thread> {
               }).toList();
 
               file.writeBookMark(widget.no, widget.op.toJson(), res);
-
             } else {
               file.deleteBookmarkItem(widget.op.no.toString());
             }
@@ -98,7 +97,11 @@ class _ThreadState extends State<Thread> {
               return value.currentThread.isEmpty && !value.error
                   ? const CircularProgressIndicator()
                   : value.error
-                      ? Text(value.errorMessage)
+                      ? Center(
+                          child: Text(
+                            value.errorMessage,
+                          ),
+                        )
                       : ListView.separated(
                           //shrinkWrap: true,
                           padding: const EdgeInsets.all(8),
