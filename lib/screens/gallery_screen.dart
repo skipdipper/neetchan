@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:neetchan/models/post.dart';
 import 'package:neetchan/services/get_data_api.dart';
 import 'package:neetchan/utils/convert_units.dart';
+import 'package:neetchan/utils/file_manager.dart';
 import 'package:neetchan/widgets/chewie_video_player.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
-import 'package:neetchan/utils/file_manager.dart';
 
 class Gallery extends StatefulWidget {
   const Gallery({Key? key, required this.no, required this.board})
@@ -39,7 +39,7 @@ class _GalleryState extends State<Gallery> {
     // imagesLength = images.length;
 
     initialIndex = context.read<ApiData>().currentImageIndex;
-    debugPrint('----------------init index: $initialIndex---------');
+    debugPrint('------ Gallery image index: $initialIndex ------');
     pageController = PageController(initialPage: initialIndex);
 
     // WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
@@ -64,7 +64,7 @@ class _GalleryState extends State<Gallery> {
     // imagesLength = images.length;
 
     // pageController = PageController(initialPage: initialIndex);
-
+    debugPrint('------ Built Gallery screen ------');
     return Scaffold(
       backgroundColor: Colors.black54,
       appBar: AppBar(
@@ -99,6 +99,7 @@ class _GalleryState extends State<Gallery> {
                 final url = context.read<ApiData>().getImageUrl(tim!, ext!);
 
                 // TODO: check live image cache
+                //var dl = Image.network(url).image.resolve(createLocalImageConfiguration(context));
 
                 // TODO: snackbar on success or failure
                 if (await FileUtil.saveImageToStorage(fileName!, ext, url)) {

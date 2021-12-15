@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:neetchan/models/post.dart';
 import 'package:neetchan/models/catalog.dart';
+import 'package:neetchan/models/post.dart';
 import 'package:neetchan/screens/gallery_screen.dart';
+import 'package:neetchan/services/file_controller.dart';
 import 'package:neetchan/services/get_data_api.dart';
 import 'package:neetchan/services/reply_post.dart';
-import 'package:neetchan/services/file_controller.dart';
 import 'package:neetchan/utils/convert_units.dart';
 import 'package:neetchan/widgets/post_text.dart';
 import 'package:provider/provider.dart';
@@ -42,6 +42,8 @@ class _ThreadState extends State<Thread> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('------ Built Thread Screen ------');
+
     context.read<ApiData>().fetchThread(widget.no, widget.board).then((_) {
       final thread = context.read<ApiData>().currentThread;
 
@@ -92,25 +94,31 @@ class _ThreadState extends State<Thread> {
           await context.read<ApiData>().fetchThread(widget.no, widget.board);
         },
         child: Center(
-          child: Consumer<ApiData>(
+          child: Selector<ApiData, Map<String, dynamic>>(
+            selector: (_, apiData) {
+              return {
+                'thread': apiData.threads[widget.no],
+                'error': apiData.errors[widget.no],
+                'errorMessage': apiData.errorMessages[widget.no],
+              };
+            },
             builder: (context, value, child) {
-              return value.currentThread.isEmpty && !value.error
+              return value['thread'].isEmpty && !value['error']
                   ? const CircularProgressIndicator()
-                  : value.error
+                  : value['error']
                       ? Center(
                           child: Text(
-                            value.errorMessage,
+                            value['errorMessage'],
                           ),
                         )
                       : ListView.separated(
-                          //shrinkWrap: true,
                           padding: const EdgeInsets.all(8),
                           controller: scrollController,
-                          itemCount: value.currentThread.length,
+                          itemCount: value['thread'].length,
                           separatorBuilder: (context, index) =>
                               const Divider(thickness: 1.0, height: 0),
                           itemBuilder: (context, index) {
-                            Post item = value.currentThread[index];
+                            Post item = value['thread'][index];
                             return ThreadItem(item: item);
                           },
                         );
@@ -143,9 +151,9 @@ class ThreadItem extends StatelessWidget {
   }) : super(key: key);
 
   final Post item;
-
   @override
   Widget build(BuildContext context) {
+    debugPrint('------ Built Thread item ------');
     // final thread = context.read<ApiData>().currentThread;
     // context.read<ReplyPost>().populateRepliesMap(thread);
 
@@ -219,7 +227,7 @@ class ThreadItem extends StatelessWidget {
                 if (context.read<ReplyPost>().repliesMap[item.no] != null) ...[
                   TextButton(
                     child: Text(
-                        '${context.read<ReplyPost>().repliesMap[item.no]!.length} REPLIES'),
+                        '${context.read<ReplyPost>().repliesMap[item.no]?.length} REPLIES'),
                     onPressed: () {
                       Set<int> replies =
                           context.read<ReplyPost>().repliesMap[item.no]!;

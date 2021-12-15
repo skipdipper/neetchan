@@ -14,7 +14,7 @@ class Catalog {
   final int? images;
   final int? lastModified;
   late String? board;
-  late int? accessedOn; 
+  late int? accessedOn;
 
   Catalog({
     required this.no,
@@ -36,6 +36,26 @@ class Catalog {
     this.accessedOn,
   });
 
+  // Saving Bookmark when open link from another thread
+  Catalog.temp({
+    required this.no,
+    required this.resto,
+    this.time = 0,
+    this.name,
+    this.trip,
+    this.sub,
+    this.com,
+    this.filename,
+    this.ext,
+    this.filesize,
+    this.tim,
+    this.replies = 0,
+    this.images,
+    this.lastModified,
+    required this.board,
+    this.accessedOn,
+  });
+
   factory Catalog.fromJson(Map<String, dynamic> json) {
     return Catalog(
       no: json['no'],
@@ -52,7 +72,7 @@ class Catalog {
       replies: json['replies'] ?? 0,
       images: json['images'],
       lastModified: json['last_modified'],
-      // only used for logging, initially null before manually adding 
+      // only used for logging, initially null before manually adding
       board: json['board'],
       accessedOn: json['accessedOn'],
     );

@@ -2,7 +2,11 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
+import 'package:neetchan/models/catalog.dart';
+import 'package:neetchan/screens/thread_screen.dart';
+import 'package:neetchan/services/get_data_api.dart';
 import 'package:neetchan/widgets/post_text.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ParseHtmlToText extends StatefulWidget {
@@ -28,7 +32,7 @@ class _ParseHtmlToTextState extends State<ParseHtmlToText> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('BUILT ParseHtmlToText Widget');
+    debugPrint('------ Parsing Html to Text ------');
 
     final textSpans = <TextSpan>[];
 
@@ -67,16 +71,59 @@ class _ParseHtmlToTextState extends State<ParseHtmlToText> {
               ..onTap = () {
                 debugPrint('Link to another thread');
                 debugPrint(node.attributes['href']);
+                // href="[url_blank]/[board]/thread/[threadNo]#p[postNo]"
+                final divider = node.attributes['href']!.split('/thread/');
+                final linkBoard = divider.first.split('/').last;
+                final linkThread =
+                    int.tryParse(divider.last.split('#p').first) ?? 0;
+                final linkPost =
+                    int.tryParse(divider.last.split('#p').last) ?? 0;
 
-                //TODO: add function to link to another thread
-                // Navigator.push(
-                //   context,
-                //   MaterialPageRoute(
-                //     builder: (context) => Thread(
-                //       item.no,
-                //     ),
-                //   ),
-                // );
+                //TODO: open link thread at location hash position #p linkPost (scroll to)
+
+                debugPrint(
+                    'board:$linkBoard theadNo:$linkThread postNo:$linkPost');
+
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) => AlertDialog(
+                    title: const Text('Open this thread?'),
+                    content: Text('$linkBoard/$linkThread'),
+                    actions: <Widget>[
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, 'Cancel'),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          // Causes provider null error b.c. context poped
+                          //Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => Thread(
+                                no: linkThread,
+                                board: linkBoard,
+                                op: Catalog.temp(
+                                    no: linkThread, resto: 0, board: linkBoard),
+                              ),
+                            ),
+                          ).then((value) {
+                            debugPrint('------ Another Thread POPPED ------');
+                            if (!context.read<ApiData>().currentThreadError) {
+                              context.read<ApiData>().threadNoStack.pop();
+                            }
+                            // resets image index, images, error
+                            context.read<ApiData>().clearThread();
+                            // pops off link to another thread dialogue
+                            Navigator.pop(context);
+                          });
+                        },
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                );
               };
           }
         } else if (node.className == 'deadlink') {

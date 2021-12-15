@@ -30,6 +30,7 @@ class BuildHistory extends StatelessWidget {
   }) : super(key: key);
   @override
   Widget build(BuildContext context) {
+    debugPrint('------ Built History screen ------');
     context.read<FileController>().readHistory();
     return RefreshIndicator(
       onRefresh: () async {
@@ -140,7 +141,8 @@ class HistoryItem extends StatelessWidget {
           ),
         ).then((value) {
           context.read<ApiData>().clearThread();
-          debugPrint('---------HISTORY THREAD SCREEN POP-----------');
+          context.read<ApiData>().threadNoStack.pop();
+          debugPrint('------ Popped History Screen ------');
           // reset error to false
           // Clear repliesMap
         });

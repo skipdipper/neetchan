@@ -30,6 +30,7 @@ class BuildBookmark extends StatelessWidget {
   }) : super(key: key);
   @override
   Widget build(BuildContext context) {
+    debugPrint('------ Built Bookmark screen ------');
     context.read<FileController>().readBookMark();
     return RefreshIndicator(
       onRefresh: () async {

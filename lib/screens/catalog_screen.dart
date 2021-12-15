@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:neetchan/models/board.dart';
 import 'package:neetchan/models/catalog.dart';
@@ -23,6 +21,7 @@ class _BoardsState extends State<Boards> {
   Widget build(BuildContext context) {
     //final appState = Provider.of<ApiData>(context);
     context.read<ApiData>().fetchCatalog();
+    debugPrint('------ Built Catalog screen ------');
     return Scaffold(
       appBar: AppBar(
         title: Consumer<ApiData>(
@@ -48,16 +47,27 @@ class _BoardsState extends State<Boards> {
           await context.read<ApiData>().fetchCatalog();
         },
         child: Center(
-          child: Consumer<ApiData>(
+          child: Selector<ApiData, Map<String, dynamic>>(
+            selector: (_, apiData) {
+              return {
+                'catalog': apiData.currentCatalog,
+                'error': apiData.catalogError,
+                'errorMessage': apiData.errorMessage,
+              };
+            },
             builder: (context, value, child) {
-              return value.currentCatalog.isEmpty && !value.error
+              return value['catalog'].isEmpty && !value['error']
                   ? const CircularProgressIndicator()
-                  : value.error
-                      ? Text(value.errorMessage)
+                  : value['error']
+                      ? Center(
+                          child: Text(
+                            value['errorMessage'],
+                          ),
+                        )
                       : ListView.builder(
-                          itemCount: value.currentCatalog.length,
+                          itemCount: value['catalog'].length,
                           itemBuilder: (context, index) {
-                            Catalog item = value.currentCatalog[index];
+                            Catalog item = value['catalog'][index];
                             return CatalogItem(item: item);
                           },
                         );
@@ -75,6 +85,7 @@ class BuildCatlog extends StatelessWidget {
   }) : super(key: key);
   @override
   Widget build(BuildContext context) {
+    debugPrint('------ Built Catalog Screen -------');
     context.read<ApiData>().fetchCatalog();
     return RefreshIndicator(
       onRefresh: () async {
@@ -83,9 +94,9 @@ class BuildCatlog extends StatelessWidget {
       child: Center(
         child: Consumer<ApiData>(
           builder: (context, value, child) {
-            return value.currentCatalog.isEmpty && !value.error
+            return value.currentCatalog.isEmpty && !value.catalogError
                 ? const CircularProgressIndicator()
-                : value.error
+                : value.catalogError
                     ? Text(value.errorMessage)
                     : ListView.builder(
                         itemCount: value.currentCatalog.length,
@@ -111,6 +122,7 @@ class CatalogItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('------ Built Catalog item ------');
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 4),
       constraints: const BoxConstraints(
@@ -119,18 +131,18 @@ class CatalogItem extends StatelessWidget {
       child: Card(
         elevation: 2.0,
         child: InkWell(
-          onTap: () {
+          onTap: () async {
             // pause logging history
             if (!context.read<AppSettings>().isCognitoMode) {
               item.accessedOn = DateTime.now().millisecondsSinceEpoch;
               context.read<FileController>().writeHistory(item.toJson());
             }
 
-            var json = jsonEncode(item.toJson());
-            debugPrint('\n');
-            debugPrint(json);
+            // var json = jsonEncode(item.toJson());
+            // debugPrint('\n');
+            // debugPrint(json);
 
-            Navigator.push(
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => Thread(
@@ -139,11 +151,11 @@ class CatalogItem extends StatelessWidget {
                   op: item, // uncessary but waah
                 ),
               ),
-            ).then((value) {
-              context.read<ApiData>().clearThread();
-              debugPrint('---------THREAD SCREEN POP-----------');
-              // Clear repliesMap
-            });
+            );
+            // can only be called if widget not disposed
+            context.read<ApiData>().clearThread();
+            context.read<ApiData>().threadNoStack.pop();
+            debugPrint('------ Popped Thread Screen ------');
           },
           child: Padding(
             padding: const EdgeInsets.all(8.0),
@@ -190,8 +202,7 @@ class CatalogItem extends StatelessWidget {
                             ),
                           ).then((value) {
                             context.read<ApiData>().clearThread();
-                            debugPrint(
-                                '----POP index: ${context.read<ApiData>().currentImageIndex}---------');
+                            context.read<ApiData>().threadNoStack.pop();
                           });
                         },
                       ),

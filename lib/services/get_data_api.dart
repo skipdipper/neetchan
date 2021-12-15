@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:neetchan/models/catalog.dart';
 import 'package:neetchan/models/post.dart';
+import 'package:neetchan/utils/stack.dart' as stack;
 
 class ApiData extends ChangeNotifier {
   // Persists only a single Board Catalog
@@ -13,6 +14,11 @@ class ApiData extends ChangeNotifier {
   //HashMap<String, List<Post>> threads = HashMap();
   // A map of concurrently open threads
   Map<int, List<Post>> threads = {};
+  Map<int, bool> errors = {};
+  Map<int, String> errorMessages = {};
+
+  // current threadNo
+  stack.Stack<int> threadNoStack = stack.Stack();
 
   // current Thread
   List<Post> thread = [];
@@ -28,7 +34,9 @@ class ApiData extends ChangeNotifier {
   // Invalid default Thread no
   int threadNo = 0;
 
+  bool catalogError = false;
   bool error = false;
+  bool currentThreadError = false;
   String errorMessage = '';
 
   // Tapping on a Catalog card or open tab thread updates current thread no
@@ -110,17 +118,17 @@ class ApiData extends ChangeNotifier {
         });
         catalog = catalogList;
       } else {
-        error = true;
+        catalogError = true;
         errorMessage = 'Failed to load /$board/';
       }
     } on SocketException {
-      error = true;
+      catalogError = true;
       errorMessage = 'Check your Internet Connection';
     } on FormatException {
-      error = true;
+      catalogError = true;
       errorMessage = 'Error occured parsing Catalog format';
     } catch (e) {
-      error = true;
+      catalogError = true;
       errorMessage = e.toString();
     }
 
@@ -130,7 +138,9 @@ class ApiData extends ChangeNotifier {
   Future<void> fetchThread(int no, String thisBoard) async {
     // final response =
     //     await http.get(Uri.parse('https://a.4cdn.org/$board/thread/$no.json'));
-
+    threads[no] = [];
+    errors[no] = false;
+    errorMessages[no] = '';
     try {
       final response = await http
           .get(Uri.parse('https://a.4cdn.org/$thisBoard/thread/$no.json'));
@@ -142,51 +152,65 @@ class ApiData extends ChangeNotifier {
           newThread.add(Post.fromJson(post));
         }
         thread = newThread;
+        threadNoStack.push(no);
         // Add Map entry
         threads[no] = newThread;
       } else {
         error = true;
-        errorMessage = 'Too bad the thread was pruned';
+        errorMessages[no] = 'Too bad the thread was pruned';
+        errors[no] = true;
+        currentThreadError = true;
       }
     } on SocketException {
       error = true;
-      errorMessage = 'Check your Internet Connection';
+      errorMessages[no] = 'Check your Internet Connection';
+      errors[no] = true;
+      currentThreadError = true;
     } on FormatException {
       error = true;
-      errorMessage = 'Error occured parsing Thread format';
+      errorMessages[no] = 'Error occured parsing Thread format';
+      errors[no] = true;
+      currentThreadError = true;
     } catch (e) {
       error = true;
-      errorMessage = e.toString();
+      errorMessages[no] = e.toString();
+      errors[no] = true;
+      currentThreadError = true;
     }
 
     notifyListeners();
   }
 
-  // TODO: changed this add thisBoard
   Future<void> fetchImages(int no, String thisBoard) async {
     // Get all posts in a thread
+    var threadNo = no;
+    try {
+      // Thread screen
+      threadNo = threadNoStack.peek();
+    } on StateError {
+      // Catalog screen
+      threadNo = no;
+    } finally {
+      if (threads[threadNo] == null) {
+        await fetchThread(threadNo, thisBoard);
+      }
 
-    if (thread.isEmpty) {
-      // only fetchthread if launch gallery from Catalog screen
-      await fetchThread(no, thisBoard);
-    }
-    //await fetchThread(no); // this breaks shit
-
-    // Get a list of posts with images
-    if (!error) {
-      final ext = ['.jpg', '.png', '.gif', '.webm'];
-      // Populate list of posts with attachments only
-      images = thread.where((post) {
-        return ext.contains(post.ext);
-      }).toList();
-      // Get the current image index
-      imageIndex = images.indexWhere((post) => post.no == no);
+      if (!error) {
+        final ext = ['.jpg', '.png', '.gif', '.webm'];
+        // Populate list of posts with attachments only
+        images = threads[threadNo]!.where((post) {
+          return ext.contains(post.ext);
+        }).toList();
+        // Get the current image index
+        imageIndex = images.indexWhere((post) => post.no == no);
+      }
     }
   }
 
+  // TODO: refactor this
   void clearThread() {
     error = false;
-    errorMessage = '';
+    currentThreadError = false;
     thread = [];
     images = [];
     imageIndex = 0;

@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
@@ -122,11 +123,14 @@ class SelectablePostDescription extends StatelessWidget {
 }
 
 // Retrives single reply to post
-Future<Post> getReplyPost(BuildContext context, int no) async {
-  final postList = Provider.of<ApiData>(context, listen: false).currentThread;
+Future<Post?> getReplyPost(BuildContext context, int no) async {
+  final currentThreadNo = context.read<ApiData>().threadNoStack.peek();
+  final postList = context.read<ApiData>().threads[currentThreadNo]!;
+  
+  //final postList = Provider.of<ApiData>(context, listen: false).currentThread;
   // Find the post object with matching post no
   if (postList.isNotEmpty) {
-    final replyPost = postList.firstWhere((post) => post.no == no);
+    final replyPost = postList.firstWhereOrNull((post) => post.no == no);
     return replyPost;
   } else {
     throw Exception('Failed to find reply post');
@@ -139,7 +143,9 @@ Future<List<Post>> getAllReplyPost(
   List<Post> replyPosts = [];
   for (int reply in replies) {
     final post = await getReplyPost(context, reply);
-    replyPosts.add(post);
+    if (post != null) {
+      replyPosts.add(post);
+    }
   }
   return replyPosts;
 }
@@ -269,7 +275,7 @@ singleReplyDialogue(BuildContext context, String attribute) async {
         ],
       ),
       content: SingleChildScrollView(
-        child: ThreadItem(item: replyPost),
+        child: ThreadItem(item: replyPost!),
       ),
     ),
   );

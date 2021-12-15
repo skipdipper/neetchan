@@ -6,6 +6,7 @@ import 'package:neetchan/models/post.dart';
 
 class ReplyPost extends ChangeNotifier {
   // Change to List<int> to Set<int>
+  // key: post in a thread; value: replies to the post 
   HashMap<int, Set<int>> repliesMap = HashMap();
   //HashMap<int, List<int>> repliesMap = HashMap();
 
@@ -53,23 +54,23 @@ class ReplyPost extends ChangeNotifier {
   List<int> parseRepliesHtml(String com) {
     var document = parseFragment(com);
     // Get list of elements that contain anchor tag with class quotelink
-    final replies = document.querySelectorAll('a.quotelink');
+    // href does contain 'thread' link to another thread 
+    final replies = document.querySelectorAll('a:not([href*="thread"]).quotelink');
 
     final replyNos = replies.map((element) {
-      String no = element.innerHtml.split(';').last; // element.innerText
+      final no = element.attributes['href']!.split('#p').last;
+      //String no = element.innerHtml.split(';').last; // element.innerText
       var value = int.tryParse(no);
       if (value == null) {
-        debugPrint(no);
-        debugPrint('---------------INVALID POST NO----------------');
-        //throw const FormatException('Invalid reply to post no');
+        debugPrint('------ Invalid Post No: $no ------');
         return 404;
       }
       return value;
     }).toList();
 
-    if (replyNos.isEmpty) {
-      debugPrint('EMPTY LIST OF REPLIES');
-    }
+    // if (replyNos.isEmpty) {
+    //   debugPrint('EMPTY LIST OF REPLIES');
+    // }
     return replyNos;
   }
 }
