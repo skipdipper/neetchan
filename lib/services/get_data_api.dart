@@ -26,6 +26,42 @@ class ApiData extends ChangeNotifier {
   // Posts in the current Thread with media attachments
   List<Post> images = [];
 
+  // Move this to another Class 
+  bool isGalleryGridView = false;
+  PageController pageController = PageController();
+  late ScrollController scrollController;
+
+  void updatePage(int index) {
+    if (pageController.hasClients) {
+      pageController.jumpToPage(index);
+      debugPrint('------ Jumping to page ${pageController.page!.floor()} in Gallery Screen ------');
+
+    } else {
+      debugPrint('------ PageController has no listeners ------');
+    }
+
+    notifyListeners();
+  }
+
+  void updateScrollposition(double index) {
+    if (scrollController.hasClients) {
+      debugPrint('------ Jumping to $index in GalleryGrid Screen ------');
+      if (index >= scrollController.position.maxScrollExtent) {
+        return;
+      }
+      scrollController.jumpTo(index);
+    } else {
+      debugPrint('------ SCrollController has no listeners ------');
+    }
+  
+    notifyListeners();
+  }
+
+  void toggleGalleryGridView() {
+    isGalleryGridView = !isGalleryGridView;
+    notifyListeners();
+  }
+
   int imageIndex = 0;
 
   // Tracks the current board, defaults to 'anime & manga'
@@ -65,7 +101,11 @@ class ApiData extends ChangeNotifier {
 
   // update image index
   void updateImageIndex(int index) {
+    if (index == imageIndex) {
+      return;
+    } 
     imageIndex = index;
+    // Comment this out
     notifyListeners();
   }
 
@@ -152,7 +192,13 @@ class ApiData extends ChangeNotifier {
           newThread.add(Post.fromJson(post));
         }
         thread = newThread;
+
+        // No need to push to stack on thread refresh
+        // if (!threadNoStack.isEmpty() && threadNoStack.peek() != no) {
+        //   threadNoStack.push(no);
+        // }
         threadNoStack.push(no);
+
         // Add Map entry
         threads[no] = newThread;
       } else {

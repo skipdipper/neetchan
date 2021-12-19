@@ -36,7 +36,7 @@ class _ThreadState extends State<Thread> {
 
   @override
   void dispose() {
-    //scrollController.dispose();
+    scrollController.dispose();
     super.dispose();
   }
 
@@ -111,16 +111,19 @@ class _ThreadState extends State<Thread> {
                             value['errorMessage'],
                           ),
                         )
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(8),
+                      : Scrollbar(
                           controller: scrollController,
-                          itemCount: value['thread'].length,
-                          separatorBuilder: (context, index) =>
-                              const Divider(thickness: 1.0, height: 0),
-                          itemBuilder: (context, index) {
-                            Post item = value['thread'][index];
-                            return ThreadItem(item: item);
-                          },
+                          child: ListView.separated(
+                            padding: const EdgeInsets.all(8),
+                            controller: scrollController,
+                            itemCount: value['thread'].length,
+                            separatorBuilder: (context, index) =>
+                                const Divider(thickness: 1.0, height: 0),
+                            itemBuilder: (context, index) {
+                              Post item = value['thread'][index];
+                              return ThreadItem(item: item);
+                            },
+                          ),
                         );
             },
           ),
@@ -205,10 +208,9 @@ class ThreadItem extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          // TODO: change current Board via ApiData to storing in Post model
-                          // May not cos you can only view one gallery at once
-                          builder: (context) => Gallery(
+                        PageRouteBuilder(
+                          opaque: false,
+                          pageBuilder: (context, _, __) => Gallery(
                               no: item.no,
                               board: context.read<ApiData>().currentBoard),
                         ),

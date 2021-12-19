@@ -52,12 +52,12 @@ class FileUtil {
     if (len > 0) {
       var newFile = await raf.setPosition(len - 1);
       await newFile.writeString(",$entry]");
-      debugPrint(file.readAsStringSync());
+      // debugPrint(file.readAsStringSync());
       await newFile.close();
     } else {
       await raf.writeString("[$entry]");
-      debugPrint('\n');
-      debugPrint(file.readAsStringSync());
+      // debugPrint('\n');
+      // debugPrint(file.readAsStringSync());
       await raf.close();
     }
   }
@@ -87,12 +87,12 @@ class FileUtil {
       var newFile = await raf.setPosition(len - 1);
       await newFile
           .writeString(",\"$no\":{\"op\":$jop,\"replies\":$jreplies}}");
-      debugPrint(file.readAsStringSync());
+      // debugPrint(file.readAsStringSync());
       await newFile.close();
     } else {
       await raf.writeString("{\"$no\":{\"op\":$jop,\"replies\":$jreplies}}");
-      debugPrint('\n');
-      debugPrint(file.readAsStringSync());
+      // debugPrint('\n');
+      // debugPrint(file.readAsStringSync());
       await raf.close();
     }
   }
@@ -139,7 +139,7 @@ class FileUtil {
       String fileName, String ext, String url) async {
     try {
       if (await requestPermission(Permission.storage)) {
-        debugPrint('-------------------PERMISSION GRANTED ------------------');
+        //debugPrint('-------------------PERMISSION GRANTED ------------------');
         const folder = "NeetChan";
         final directory = Directory('storage/emulated/0/$folder');
 
@@ -148,7 +148,7 @@ class FileUtil {
         }
 
         if (await directory.exists()) {
-          debugPrint('-------------------DIRECTORY EXISTS ------------------');
+          //debugPrint('-------------------DIRECTORY EXISTS ------------------');
           final path = '${directory.path}/$fileName$ext';
           File image = File(path);
           //TODO: check if image cached
@@ -157,10 +157,10 @@ class FileUtil {
 
           if (ext == '.webm') { 
             final res = await GallerySaver.saveVideo(url, albumName: folder, fileName: fileName);
-            debugPrint('$res');
+            //debugPrint('$res');
           } else {
             final res = await GallerySaver.saveImage(url, albumName: folder, fileName: fileName);
-            debugPrint('$res');
+            //debugPrint('$res');
           }
           return true;
         }
