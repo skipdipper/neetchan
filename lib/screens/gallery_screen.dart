@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:neetchan/models/post.dart';
+import 'package:neetchan/services/gallery_controller.dart';
 import 'package:neetchan/services/get_data_api.dart';
 import 'package:neetchan/utils/convert_units.dart';
 import 'package:neetchan/utils/file_manager.dart';
@@ -16,64 +17,109 @@ class Gallery extends StatefulWidget {
 
   final int no;
   final String board;
-
   @override
   _GalleryState createState() => _GalleryState();
 }
 
 class _GalleryState extends State<Gallery> {
-  List<Post> images = [];
-
-  int initialIndex = 0;
-  int imagesLength = 0;
-
+  late List<Widget> pages;
   late PageController pageController;
+  int selectedPage = 0;
 
   @override
   void initState() {
     super.initState();
-    //pageController = PageController(initialPage: initialIndex);
+
+    pages = [
+      GalleryPage(no: widget.no, board: widget.board),
+      const GalleryGridView(), //images: context.read<ApiData>().images
+    ];
+
+    pageController = PageController(initialPage: selectedPage);
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    pageController.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<GalleryController, int>(selector: (_, apiData) {
+      return apiData.selectedGalleryIndex;
+    }, builder: (context, value, child) {
+      return PageView(
+        controller: context.read<GalleryController>().galleryController, 
+        physics: const NeverScrollableScrollPhysics(),
+        children: pages,
+      );
+    });
+  }
+}
+
+class GalleryPage extends StatefulWidget {
+  const GalleryPage({Key? key, required this.no, required this.board})
+      : super(key: key);
+
+  final int no;
+  final String board;
+  @override
+  _GalleryPageState createState() => _GalleryPageState();
+}
+
+class _GalleryPageState extends State<GalleryPage>
+    with AutomaticKeepAliveClientMixin<GalleryPage> {
+  List<Post> images = [];
+
+  late PageController pageController;
+  bool keepAlive = false;
+
+  @override
+  get wantKeepAlive => keepAlive;
+
+  @override
+  void initState() {
+    super.initState();
 
     context.read<ApiData>().fetchImages(widget.no, widget.board);
-    // images = context.read<ApiData>().images;
-    // imagesLength = images.length;
 
-    initialIndex = context.read<ApiData>().currentImageIndex;
+    final initialIndex = context.read<ApiData>().currentImageIndex;
     debugPrint('------ Gallery image index: $initialIndex ------');
     pageController = PageController(initialPage: initialIndex);
 
-    // WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
-    //   setState(() {
-    //     initialIndex = context.read<ApiData>().currentImageIndex;
-    //     pageController = PageController(initialPage: initialIndex);
-    //   });
-    // });
-
     // Jump to the selected thumbnail image
     WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
-      context.read<ApiData>().updatePage(initialIndex);
+      context.read<GalleryController>().updatePage(initialIndex);
     });
+
+    keepAlive = true;
+    updateKeepAlive();
   }
 
   @override
   void dispose() {
     pageController.dispose();
-    //context.read<ApiData>().pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // context.read<ApiData>().fetchImages(widget.no);
-    // images = context.read<ApiData>().images;
-    // initialIndex = context.read<ApiData>().currentImageIndex;
-    // imagesLength = images.length;
+    super.build(context);
 
-    // pageController = PageController(initialPage: initialIndex);
     debugPrint('------ Built Gallery screen ------');
     Widget galleryPage = Scaffold(
-      backgroundColor: Colors.black54, //Colors.transparent,
+      backgroundColor: Colors.black54,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+            keepAlive = false;
+            updateKeepAlive();
+          },
+          icon: const Icon(Icons.arrow_back),
+        ),
         backgroundColor: Colors.black,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,43 +145,44 @@ class _GalleryState extends State<Gallery> {
             icon: const Icon(Icons.share),
           ),
           IconButton(
-              onPressed: () async {
-                final imageIndex = context.read<ApiData>().currentImageIndex;
-                final image = context.read<ApiData>().images[imageIndex];
-                final fileName = image.filename;
-                final ext = image.ext;
-                final tim = image.tim;
-                final url = context.read<ApiData>().getImageUrl(tim!, ext!);
+            onPressed: () async {
+              final imageIndex = context.read<ApiData>().currentImageIndex;
+              final image = context.read<ApiData>().images[imageIndex];
+              final fileName = image.filename;
+              final ext = image.ext;
+              final tim = image.tim;
+              final url = context.read<ApiData>().getImageUrl(tim!, ext!);
 
-                // TODO: check live image cache
-                //var dl = Image.network(url).image.resolve(createLocalImageConfiguration(context));
+              // TODO: check live image cache
+              //var dl = Image.network(url).image.resolve(createLocalImageConfiguration(context));
 
-                // TODO: snackbar on success or failure
-                if (await FileUtil.saveImageToStorage(fileName!, ext, url)) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Saved as "$fileName$ext"',
-                        textAlign: TextAlign.left,
-                      ),
-                      duration: const Duration(milliseconds: 2000),
-                      elevation: 2,
-                      behavior: SnackBarBehavior.floating,
-                      margin: const EdgeInsets.symmetric(horizontal: 60),
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.all(
-                          Radius.circular(20),
-                        ),
+              // TODO: snackbar on success or failure
+              if (await FileUtil.saveImageToStorage(fileName!, ext, url)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Saved as "$fileName$ext"',
+                      textAlign: TextAlign.left,
+                    ),
+                    duration: const Duration(milliseconds: 2000),
+                    elevation: 2,
+                    behavior: SnackBarBehavior.floating,
+                    margin: const EdgeInsets.symmetric(horizontal: 60),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(
+                        Radius.circular(20),
                       ),
                     ),
-                  );
-                }
-              },
-              icon: const Icon(Icons.save)),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.save),
+          ),
         ],
       ),
-      body: 
-      Consumer<ApiData>( // Change to selector
+      body: Consumer<ApiData>(
+        // Change to selector
         builder: (context, value, child) {
           debugPrint('------ Built Gallery Screen inside Consumer ------');
           return value.images.isEmpty && !value.error
@@ -146,7 +193,7 @@ class _GalleryState extends State<Gallery> {
                     )
                   : PageView.builder(
                       allowImplicitScrolling: true,
-                      controller: context.read<ApiData>().pageController, // pageController, PageController(initialPage: value.currentImageIndex),
+                      controller: context.read<GalleryController>().pageController,
                       onPageChanged: (index) {
                         value.updateImageIndex(index);
                       },
@@ -154,14 +201,13 @@ class _GalleryState extends State<Gallery> {
                       itemBuilder: (context, index) {
                         debugPrint('------ Built Gallery Page ${index + 1} ------');
                         Post item = value.images[index];
-                        return GalleryItem(
+                        return GalleryPageItem(
                           item: item,
                         );
                       },
                     );
         },
       ),
-
       bottomNavigationBar: Container(
         color: Colors.black,
         child: Row(
@@ -197,12 +243,13 @@ class _GalleryState extends State<Gallery> {
             ),
             IconButton(
               onPressed: () {
-                context.read<ApiData>().toggleGalleryGridView();
-
                 final screenWidth = MediaQuery.of(context).size.width;
                 double position = (screenWidth / 2) *
                     (context.read<ApiData>().currentImageIndex / 2).floor();
-                context.read<ApiData>().updateScrollposition(position);
+                // Has not listerns and does nothing on first build
+                context.read<GalleryController>().updateScrollposition(position);
+
+                context.read<GalleryController>().toggleGalleryView(1);
               },
               icon: const Icon(Icons.view_module),
             ),
@@ -210,36 +257,12 @@ class _GalleryState extends State<Gallery> {
         ),
       ),
     );
-
-    return Selector<ApiData, bool>(
-      selector: (_, apiData) {
-        return apiData.isGalleryGridView;
-      },
-      builder: (context, value, child) {
-        // return value
-        //     ? GalleryGridView(
-        //         no: context.read<ApiData>().currentImageIndex,
-        //         images: context.read<ApiData>().images,
-        //       )
-        //     : galleryPage;
-        debugPrint('------ Built Stacked Index -------');
-        return IndexedStack(
-          index: value ? 1 : 0,
-          children: [
-            galleryPage,
-            GalleryGridView(
-              // no: context.read<ApiData>().currentImageIndex,
-              images: context.read<ApiData>().images,
-            )
-          ],
-        );
-      },
-    );
+    return galleryPage;
   }
 }
 
-class GalleryItem extends StatelessWidget {
-  const GalleryItem({
+class GalleryPageItem extends StatelessWidget {
+  const GalleryPageItem({
     required this.item,
     Key? key,
   }) : super(key: key);
@@ -284,32 +307,51 @@ class GalleryItem extends StatelessWidget {
   }
 }
 
-class GalleryGridView extends StatelessWidget {
+class GalleryGridView extends StatefulWidget {
   const GalleryGridView({
     // required this.no,
-    required this.images,
+    //required this.images,
     Key? key,
   }) : super(key: key);
 
   // final int no;
-  final List<Post> images;
+  //final List<Post> images;
+
+  @override
+  State<GalleryGridView> createState() => _GalleryGridViewState();
+}
+
+class _GalleryGridViewState extends State<GalleryGridView>
+    with AutomaticKeepAliveClientMixin<GalleryGridView> {
+
+  late ScrollController scrollController;
+  bool keepAlive = false;
+
+  @override
+  get wantKeepAlive => keepAlive;
+  late double position;
+
+  @override
+  void initState() {
+    super.initState();
+    scrollController = context.read<GalleryController>().scrollController;
+
+    WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
+      // Can only get screenWidth after init build
+      final screenWidth = MediaQuery.of(context).size.width;
+      position = (screenWidth / 2) *
+          (context.read<ApiData>().currentImageIndex / 2).floor();
+      context.read<GalleryController>().updateScrollposition(position);
+    });
+
+    keepAlive = true;
+    updateKeepAlive();
+  }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     debugPrint('------ Built Gallery Gridview Screen ------');
-
-    final screenWidth = MediaQuery.of(context).size.width;
-    double position = (screenWidth / 2) *
-        (context.read<ApiData>().currentImageIndex / 2).floor();
-
-    final scrollController = context.read<ApiData>().scrollController =
-        ScrollController(initialScrollOffset: position);
-    //final scrollController = ScrollController();
-
-    // Empty constructor
-    //final apiData = context.read<ApiData>();
-    //apiData.fetchImages(apiData.currenThreadNo, apiData.currentBoard);
-    //final images = context.read<ApiData>().images;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -318,7 +360,9 @@ class GalleryGridView extends StatelessWidget {
         leading: IconButton(
           onPressed: () {
             Navigator.pop(context);
-            context.read<ApiData>().toggleGalleryGridView();
+            //context.read<ApiData>().toggleGalleryGridView();
+            keepAlive = false;
+            updateKeepAlive();
           },
           icon: const Icon(Icons.arrow_back),
         ),
@@ -348,9 +392,9 @@ class GalleryGridView extends StatelessWidget {
           crossAxisSpacing: 4,
           childAspectRatio: 1 / 1,
         ),
-        itemCount: images.length,
+        itemCount: context.read<ApiData>().images.length, //widget.images.length,
         itemBuilder: (context, index) {
-          final image = images[index];
+          final image = context.read<ApiData>().images[index]; // widget.images[index];
           return GridImageItem(
             image: image,
             index: index,
@@ -412,8 +456,8 @@ class GridImageItem extends StatelessWidget {
       onTap: () {
         // Open the selected image from gridview in Gallery
         context.read<ApiData>().updateImageIndex(index);
-        context.read<ApiData>().toggleGalleryGridView();
-        context.read<ApiData>().updatePage(context.read<ApiData>().currentImageIndex);
+        context.read<GalleryController>().toggleGalleryView(0);
+        context.read<GalleryController>().updatePage(context.read<ApiData>().currentImageIndex);
       },
     );
   }
