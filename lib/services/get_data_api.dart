@@ -92,6 +92,7 @@ class ApiData extends ChangeNotifier {
   List<Post> get currentThread => thread;
   Map<int, List<Post>> get mapThreads => threads;
   int get currentImageIndex => imageIndex;
+  Post get currentImage => images[imageIndex];
 
   // Fetches all OPs for every page on a single board catalog
   Future<void> fetchCatalog() async {

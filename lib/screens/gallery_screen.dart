@@ -10,6 +10,8 @@ import 'package:neetchan/utils/file_manager.dart';
 import 'package:neetchan/widgets/chewie_video_player.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 
 class Gallery extends StatefulWidget {
   const Gallery({Key? key, required this.no, required this.board})
@@ -179,6 +181,7 @@ class _GalleryPageState extends State<GalleryPage>
             },
             icon: const Icon(Icons.save),
           ),
+          const GalleryPopupMenu(),
         ],
       ),
       body: Consumer<ApiData>(
@@ -460,5 +463,150 @@ class GridImageItem extends StatelessWidget {
         context.read<GalleryController>().updatePage(context.read<ApiData>().currentImageIndex);
       },
     );
+  }
+}
+
+
+class GalleryPopupMenu extends StatelessWidget {
+  const GalleryPopupMenu({
+    Key? key,
+  }) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<MenuOptions>(
+      onSelected: (value) {
+        value.action(context);
+      },
+      itemBuilder: (context) => <PopupMenuEntry<MenuOptions>>[
+        ...MenuOptions.values.map(
+          (item) => PopupMenuItem<MenuOptions>(
+            value: item,
+            child: Text(item.description),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+enum MenuOptions {
+  openBrowser,
+  imageSearch,
+  imageInfo,
+}
+
+extension MenuOptionsExtension on MenuOptions {
+  String get description {
+    switch (this) {
+      case MenuOptions.imageSearch:
+        return 'Image search';
+      case MenuOptions.imageInfo:
+        return 'Image info';
+      case MenuOptions.openBrowser:
+        return 'Open in a browser';
+    }
+  }
+
+  void action(context) {
+    switch (this) {
+      case MenuOptions.imageSearch:
+        _showSearchMenu(context);
+        break;
+      case MenuOptions.imageInfo:
+        _showMyDialog(context);
+        break;
+      case MenuOptions.openBrowser:
+        break;
+    }
+  }
+
+  Future<void> _showSearchMenu(BuildContext context) async {
+    return showMenu(
+        context: context,
+        position: const RelativeRect.fromLTRB(double.maxFinite, 0, 0, 0),
+        items: [
+          ...SearchOptions.values.map((item) => PopupMenuItem<SearchOptions>(
+              child: Text(item.description),
+              onTap: () {
+                item.action(context);
+              }))
+        ]);
+  }
+
+  Future<void> _showMyDialog(BuildContext context) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true, 
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Image Info'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: const <Widget>[
+                Text('Posted: '),
+                Text('File Name: '),
+                Text('Dimensions: '),
+                Text('Size: '),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Exit'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+enum SearchOptions { google, sauceNao, yandex }
+
+extension SearchOptionsExtension on SearchOptions {
+  static const googleImgUrl = 'https://www.google.com/searchbyimage?image_url=';
+  static const sauceNaoImgUrl = 'https://www.saucenao.com/search.php?url=';
+  static const yandexImgUrl = 'https://yandex.ru/images/search?rpt=imageview&url=';
+
+  String get description {
+    switch (this) {
+      case SearchOptions.google:
+        return 'Google';
+      case SearchOptions.sauceNao:
+        return 'SauceNao';
+      case SearchOptions.yandex:
+        return 'Yandex';
+    }
+  }
+
+  void action(BuildContext context) {
+    String searchEngine;
+    switch (this) {
+      case SearchOptions.google:
+        searchEngine = googleImgUrl;
+        break;
+      case SearchOptions.sauceNao:
+        searchEngine = sauceNaoImgUrl;
+        break;
+      case SearchOptions.yandex:
+        searchEngine = yandexImgUrl;
+        break;
+    }
+    launchInBrowser(searchEngine + imageUrl(context));
+  }
+
+  String imageUrl(BuildContext context) {
+    final img = Provider.of<ApiData>(context, listen: false).currentImage;
+    final imgUrl = Provider.of<ApiData>(context, listen: false).getImageUrl(img.tim!, img.ext!);
+    return imgUrl;
+  }
+
+  Future<void> launchInBrowser(String url) async {
+    if (await canLaunch(url)) {
+      await launch(url);
+    }
   }
 }
