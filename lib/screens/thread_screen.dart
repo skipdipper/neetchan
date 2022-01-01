@@ -8,6 +8,7 @@ import 'package:neetchan/services/reply_post.dart';
 import 'package:neetchan/utils/convert_units.dart';
 import 'package:neetchan/widgets/post_text.dart';
 import 'package:provider/provider.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 class Thread extends StatefulWidget {
   const Thread({
@@ -21,22 +22,34 @@ class Thread extends StatefulWidget {
   final String board;
   final Catalog op; // only used for logging
 
+  static _ThreadState? of(BuildContext context) =>
+      context.findAncestorStateOfType<_ThreadState>();
+
   @override
   _ThreadState createState() => _ThreadState();
 }
 
 class _ThreadState extends State<Thread> {
-  final scrollController = ScrollController();
+
+  final itemScrollController = ItemScrollController();
+  final itemPositionListener = ItemPositionsListener.create();
+
+  final nestedThreadKey = GlobalKey<NavigatorState>();
+
   bool bookMarked = false;
 
   @override
   void initState() {
     super.initState();
+    itemPositionListener.itemPositions.addListener(() {
+      //itemScrollListener();
+      visibileItemIndexs();
+      //visibileItemPositions();
+    });
   }
 
   @override
   void dispose() {
-    scrollController.dispose();
     super.dispose();
   }
 
@@ -49,8 +62,16 @@ class _ThreadState extends State<Thread> {
 
       context.read<ReplyPost>().populateRepliesMap(thread);
     });
-    return Scaffold(
+
+    // return Scaffold
+    Widget threadWidget = Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: const Icon(Icons.arrow_back),
+        ),
         title: Text(
           widget.no.toString(),
         ),
@@ -112,15 +133,27 @@ class _ThreadState extends State<Thread> {
                           ),
                         )
                       : Scrollbar(
-                          controller: scrollController,
-                          child: ListView.separated(
+                          child: ScrollablePositionedList.separated(
                             padding: const EdgeInsets.all(8),
-                            controller: scrollController,
-                            itemCount: value['thread'].length,
-                            separatorBuilder: (context, index) =>
-                                const Divider(thickness: 1.0, height: 0),
+                            itemScrollController: itemScrollController,
+                            itemPositionsListener: itemPositionListener,
+                            itemCount: value['thread'].length + 1,
+                            //physics: const ClampingScrollPhysics(),
+                            separatorBuilder: (context, index) {
+                              // Hack to prevent jumpTo bounce effect
+                              if (index == value['thread'].length - 1) {
+                                return const SizedBox.shrink();
+                              }
+                              return const Divider(thickness: 1.0, height: 1.0);
+                            },
                             itemBuilder: (context, index) {
+                              // Hack to prevent jumpTo bounce effect
+                              if (index == value['thread'].length) {
+                                return const SizedBox.shrink();
+                              }
                               Post item = value['thread'][index];
+                              debugPrint(
+                                  '------ Built Thread item $index ------');
                               return ThreadItem(item: item);
                             },
                           ),
@@ -130,20 +163,133 @@ class _ThreadState extends State<Thread> {
         ),
       ),
     );
+
+    return WillPopScope(
+      onWillPop: () async {
+        return !await nestedThreadKey.currentState!.maybePop();
+      },
+      child: Navigator(
+        key: nestedThreadKey,
+        onGenerateRoute: (settings) {
+          if (settings.name == '/gallery') {
+            final args = settings.arguments as Gallery;
+            return PageRouteBuilder(
+              opaque: false,
+              pageBuilder: (context, _, __) =>
+                  Gallery(no: args.no, board: args.board),
+            );
+          }
+          return MaterialPageRoute(builder: (context) => threadWidget);
+        },
+      ),
+    );
   }
 
   void scrollToTop() {
-    const double offset = 0;
-    //scrollController.jumpTo(offset);
-    scrollController.animateTo(offset,
-        duration: const Duration(milliseconds: 200), curve: Curves.easeIn);
+    if (visibileItemIndexs().contains(0)) {
+      debugPrint('------ Already at top! ------');
+      return;
+    }
+
+    // Jump to has zero lag, however it rebuilds all items regardless, whereas scrollTo is opposite
+    itemScrollController.jumpTo(index: 0, alignment: 0);
+    //itemScrollController.scrollTo(index: 0, duration: const Duration(microseconds: 1), curve: Curves.easeIn);
+
+    // const double offset = 0;
+    // scrollController.jumpTo(offset);
+    // // scrollController.animateTo(offset,
+    // //     duration: const Duration(milliseconds: 200), curve: Curves.easeIn);
   }
 
   void scrollToBottom() {
-    final double offset = scrollController.position.maxScrollExtent;
-    //scrollController.jumpTo(offset);
-    scrollController.animateTo(offset,
-        duration: const Duration(milliseconds: 200), curve: Curves.easeIn);
+    final lastIndex = context.read<ApiData>().currentThread.length - 1;
+    if (visibileItemIndexs().contains(lastIndex)) {
+      debugPrint('------ Already at bottom! ------');
+      return;
+    }
+
+    // Do nothing
+    // if (fullyVisibleItemIndexes().contains(lastIndex)) {
+    //   return;
+    // } else if (partVisibleItemIndexes().contains(lastIndex)) {
+    //   itemScrollController.scrollTo(index: lastIndex, duration: const Duration(microseconds: 1), curve: Curves.easeIn);
+    // } else {
+    //   itemScrollController.jumpTo(index: lastIndex, alignment: 0);
+    // }
+
+    //itemScrollController.jumpTo(index: lastIndex, alignment: 0);
+    itemScrollController.jumpTo(index: lastIndex + 1, alignment: 1);
+    //itemScrollController.scrollTo(index: lastIndex, duration: const Duration(microseconds: 1), curve: Curves.easeIn);
+
+    // final double offset = scrollController.position.maxScrollExtent;
+    // scrollController.jumpTo(offset);
+    // // scrollController.animateTo(offset,
+    // //     duration: const Duration(milliseconds: 200), curve: Curves.easeIn);
+  }
+
+  void itemScrollListener() {
+    final visibileItems =
+        itemPositionListener.itemPositions.value.map((item) => item.index);
+    debugPrint(visibileItems.toString());
+  }
+
+  List<int> visibileItemIndexs() {
+    //final visibileItemIndexs = itemPositionListener.itemPositions.value.map((item) => item.index).toList();
+    final visibileItemIndexs = itemPositionListener.itemPositions.value
+        .where((item) {
+          final topVisible = item.itemLeadingEdge >= 0;
+          final bottomVisible = item.itemTrailingEdge <= 1;
+          return topVisible && bottomVisible;
+        })
+        .map((item) => item.index)
+        .toList();
+    return visibileItemIndexs;
+  }
+
+  List<ItemPosition> visibileItemPositions() {
+    final visibileItemIndexs =
+        itemPositionListener.itemPositions.value.toList();
+    return visibileItemIndexs;
+  }
+
+  List<int> partVisibleItemIndexes() {
+    final positions = visibileItemPositions();
+
+    final indexes = positions.map((item) => item.index).toList();
+    return indexes;
+  }
+
+  List<int> fullyVisibleItemIndexes() {
+    final positions = visibileItemPositions();
+
+    final indexes = positions
+        .where((item) {
+          final topVisible = item.itemLeadingEdge >= 0;
+          final bottomVisible = item.itemTrailingEdge <= 1;
+          return topVisible && bottomVisible;
+        })
+        .map((item) => item.index)
+        .toList();
+    return indexes;
+  }
+
+  void updateScollPosition(int position) {
+    debugPrint('------ Updating Scroll Position: $position ------');
+    itemScrollController.scrollTo(
+        index: position, duration: const Duration(milliseconds: 200));
+
+    // final images = context.read<ApiData>().imagesMap;
+    // final index = images.keys.elementAt(position);
+    // debugPrint('----- Image Index: $index ------');
+
+    // if (fullyVisibleItemIndexes().contains(index)) {
+    //   return;
+    // }
+    // if (partVisibleItemIndexes().contains(index)) {
+    //   itemScrollController.scrollTo(index: index, duration: const Duration(milliseconds: 100), curve: Curves.easeIn);
+    // } else {
+    //   itemScrollController.jumpTo(index: index, alignment: 0);
+    // }
   }
 }
 
@@ -156,7 +302,7 @@ class ThreadItem extends StatelessWidget {
   final Post item;
   @override
   Widget build(BuildContext context) {
-    debugPrint('------ Built Thread item ------');
+    //debugPrint('------ Built Thread item ------');
     // final thread = context.read<ApiData>().currentThread;
     // context.read<ReplyPost>().populateRepliesMap(thread);
 
@@ -206,15 +352,23 @@ class ThreadItem extends StatelessWidget {
                       },
                     ),
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        PageRouteBuilder(
-                          opaque: false,
-                          pageBuilder: (context, _, __) => Gallery(
-                              no: item.no,
-                              board: context.read<ApiData>().currentBoard),
-                        ),
+                      final threadKey = Thread.of(context)!.nestedThreadKey;
+                      threadKey.currentState!.pushNamed(
+                        '/gallery',
+                        arguments: Gallery(
+                            no: item.no,
+                            board: context.read<ApiData>().currentBoard),
                       );
+
+                      // Navigator.push(
+                      //   context,
+                      //   PageRouteBuilder(
+                      //     opaque: false,
+                      //     pageBuilder: (context, _, __) => Gallery(
+                      //         no: item.no,
+                      //         board: context.read<ApiData>().currentBoard),
+                      //   ),
+                      // );
                     },
                   ),
                   const SizedBox(width: 8.0),

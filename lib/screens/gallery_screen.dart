@@ -3,15 +3,15 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:neetchan/models/post.dart';
+import 'package:neetchan/screens/thread_screen.dart';
 import 'package:neetchan/services/gallery_controller.dart';
 import 'package:neetchan/services/get_data_api.dart';
 import 'package:neetchan/utils/convert_units.dart';
 import 'package:neetchan/utils/file_manager.dart';
 import 'package:neetchan/widgets/chewie_video_player.dart';
 import 'package:provider/provider.dart';
-import 'package:video_player/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import 'package:video_player/video_player.dart';
 
 class Gallery extends StatefulWidget {
   const Gallery({Key? key, required this.no, required this.board})
@@ -19,6 +19,10 @@ class Gallery extends StatefulWidget {
 
   final int no;
   final String board;
+
+  static _GalleryState? of(BuildContext context) =>
+      context.findAncestorStateOfType<_GalleryState>();
+
   @override
   _GalleryState createState() => _GalleryState();
 }
@@ -26,14 +30,24 @@ class Gallery extends StatefulWidget {
 class _GalleryState extends State<Gallery> {
   late List<Widget> pages;
   late PageController pageController;
+  late PageController galleryPageController;
   int selectedPage = 0;
 
   @override
   void initState() {
     super.initState();
 
+    context.read<ApiData>().fetchImages(widget.no, widget.board);
+    final initialIndex = context.read<ApiData>().currentImageIndex;
+    debugPrint('------ Gallery image index: $initialIndex ------');
+    galleryPageController = PageController(initialPage: initialIndex);
+
     pages = [
-      GalleryPage(no: widget.no, board: widget.board),
+      GalleryPage(
+          no: widget.no,
+          board: widget.board,
+          galleryPageController: galleryPageController,
+      ),
       const GalleryGridView(), //images: context.read<ApiData>().images
     ];
 
@@ -43,6 +57,7 @@ class _GalleryState extends State<Gallery> {
   @override
   void dispose() {
     super.dispose();
+    galleryPageController.dispose();
     pageController.dispose();
   }
 
@@ -52,7 +67,7 @@ class _GalleryState extends State<Gallery> {
       return apiData.selectedGalleryIndex;
     }, builder: (context, value, child) {
       return PageView(
-        controller: context.read<GalleryController>().galleryController, 
+        controller: context.read<GalleryController>().galleryController,
         physics: const NeverScrollableScrollPhysics(),
         children: pages,
       );
@@ -61,20 +76,23 @@ class _GalleryState extends State<Gallery> {
 }
 
 class GalleryPage extends StatefulWidget {
-  const GalleryPage({Key? key, required this.no, required this.board})
+  const GalleryPage(
+      {Key? key,
+      required this.no,
+      required this.board,
+      required this.galleryPageController})
       : super(key: key);
 
   final int no;
   final String board;
+  final PageController galleryPageController;
   @override
   _GalleryPageState createState() => _GalleryPageState();
 }
 
 class _GalleryPageState extends State<GalleryPage>
     with AutomaticKeepAliveClientMixin<GalleryPage> {
-  List<Post> images = [];
 
-  late PageController pageController;
   bool keepAlive = false;
 
   @override
@@ -84,24 +102,12 @@ class _GalleryPageState extends State<GalleryPage>
   void initState() {
     super.initState();
 
-    context.read<ApiData>().fetchImages(widget.no, widget.board);
-
-    final initialIndex = context.read<ApiData>().currentImageIndex;
-    debugPrint('------ Gallery image index: $initialIndex ------');
-    pageController = PageController(initialPage: initialIndex);
-
-    // Jump to the selected thumbnail image
-    WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
-      context.read<GalleryController>().updatePage(initialIndex);
-    });
-
     keepAlive = true;
     updateKeepAlive();
   }
 
   @override
   void dispose() {
-    pageController.dispose();
     super.dispose();
   }
 
@@ -196,9 +202,14 @@ class _GalleryPageState extends State<GalleryPage>
                     )
                   : PageView.builder(
                       allowImplicitScrolling: true,
-                      controller: context.read<GalleryController>().pageController,
+                      controller: widget.galleryPageController, 
                       onPageChanged: (index) {
                         value.updateImageIndex(index);
+
+                        // TODO: fix this inefficient method
+                        final scrollIndex = value.getThreadIndex(index);
+                        final threadState = Thread.of(context);
+                        threadState?.updateScollPosition(scrollIndex);
                       },
                       itemCount: value.images.length,
                       itemBuilder: (context, index) {
@@ -460,12 +471,12 @@ class GridImageItem extends StatelessWidget {
         // Open the selected image from gridview in Gallery
         context.read<ApiData>().updateImageIndex(index);
         context.read<GalleryController>().toggleGalleryView(0);
-        context.read<GalleryController>().updatePage(context.read<ApiData>().currentImageIndex);
+        //context.read<GalleryController>().updatePage(context.read<ApiData>().currentImageIndex);
+        Gallery.of(context)?.galleryPageController.jumpToPage(index);
       },
     );
   }
 }
-
 
 class GalleryPopupMenu extends StatelessWidget {
   const GalleryPopupMenu({
@@ -536,7 +547,7 @@ extension MenuOptionsExtension on MenuOptions {
   Future<void> _showMyDialog(BuildContext context) async {
     return showDialog<void>(
       context: context,
-      barrierDismissible: true, 
+      barrierDismissible: true,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Image Info'),

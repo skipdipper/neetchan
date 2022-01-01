@@ -152,6 +152,7 @@ Future<List<Post>> getAllReplyPost(
 
 Future<void> repliesDialog(BuildContext context, Set<int> replies) async {
   return showDialog<void>(
+    useRootNavigator: false, // use nested navigator instead
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
@@ -162,6 +163,7 @@ Future<void> repliesDialog(BuildContext context, Set<int> replies) async {
             IconButton(
               onPressed: () {
                 Navigator.pop(context);
+                //Navigator.popUntil(context, (route) => false);
               },
               icon: const Icon(
                 Icons.close,
@@ -253,6 +255,7 @@ singleReplyDialogue(BuildContext context, String attribute) async {
 
   final replyPost = await getReplyPost(context, int.parse(replyNo));
   showDialog(
+    useRootNavigator: false, // use nested navigator instead
     barrierColor: Colors.transparent,
     context: context,
     builder: (_) => AlertDialog(

@@ -218,6 +218,12 @@ class ApiData extends ChangeNotifier {
     }
   }
 
+  int getThreadIndex(int imageIndex) {
+    final no = images[imageIndex].no;
+    final postIndex = threads[threadNoStack.peek()]!.indexWhere((item) => item.no == no);
+    return postIndex;
+  }
+
   // TODO: refactor this
   void clearThread() {
     error = false;
