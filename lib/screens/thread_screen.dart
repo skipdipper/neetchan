@@ -20,7 +20,8 @@ class Thread extends StatefulWidget {
 
   final int no;
   final String board;
-  final Catalog op; // only used for logging
+  //final Catalog op; // only used for logging
+  final dynamic op;
 
   static _ThreadState? of(BuildContext context) =>
       context.findAncestorStateOfType<_ThreadState>();
@@ -57,6 +58,7 @@ class _ThreadState extends State<Thread> {
   Widget build(BuildContext context) {
     debugPrint('------ Built Thread Screen ------');
 
+    // TODO: move this to initState
     context.read<ApiData>().fetchThread(widget.no, widget.board).then((_) {
       final thread = context.read<ApiData>().currentThread;
 
@@ -124,6 +126,7 @@ class _ThreadState extends State<Thread> {
               };
             },
             builder: (context, value, child) {
+              // TODO: fix this isEmpty is null init built without fetch api
               return value['thread'].isEmpty && !value['error']
                   ? const CircularProgressIndicator()
                   : value['error']
@@ -202,7 +205,11 @@ class _ThreadState extends State<Thread> {
   }
 
   void scrollToBottom() {
-    final lastIndex = context.read<ApiData>().currentThread.length - 1;
+    //final lastIndex = context.read<ApiData>().currentThread.length - 1;
+    final apiData = context.read<ApiData>();
+    final currentThread = apiData.threads[apiData.threadNoStack.peek()];
+    final lastIndex = currentThread!.length - 1;
+
     if (visibileItemIndexs().contains(lastIndex)) {
       debugPrint('------ Already at bottom! ------');
       return;
@@ -273,11 +280,11 @@ class _ThreadState extends State<Thread> {
     return indexes;
   }
 
-  void updateScollPosition(int position) {
+  void updateScrollPosition(int position) {
     debugPrint('------ Updating Scroll Position: $position ------');
-    itemScrollController.scrollTo(
-        index: position, duration: const Duration(milliseconds: 200));
-
+    // TODO: Fix janky page scroll
+    itemScrollController.scrollTo(index: position, duration: const Duration(milliseconds: 200));
+    
     // final images = context.read<ApiData>().imagesMap;
     // final index = images.keys.elementAt(position);
     // debugPrint('----- Image Index: $index ------');

@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:neetchan/models/post.dart';
 import 'package:neetchan/screens/thread_screen.dart';
-import 'package:neetchan/services/gallery_controller.dart';
 import 'package:neetchan/services/get_data_api.dart';
 import 'package:neetchan/utils/convert_units.dart';
 import 'package:neetchan/utils/file_manager.dart';
@@ -33,6 +32,26 @@ class _GalleryState extends State<Gallery> {
   late PageController galleryPageController;
   int selectedPage = 0;
 
+  final GlobalKey<_GalleryGridViewState> galleryGridViewKey =
+      GlobalKey<_GalleryGridViewState>();
+
+  // Only so that GalleryGrid sibling GridPage can access its scrollController
+  void updateGalleryGridScrollPosition(double position) {
+    galleryGridViewKey.currentState?.updateScrollposition(position);
+  }
+
+  void updateGalleryPagePosition(int index) {
+    galleryPageController.jumpToPage(index);
+  }
+
+  void toggleGalleryView(int index) {
+    if (pageController.hasClients) {
+      pageController.jumpToPage(index);
+    } else {
+      debugPrint('------ Gallery Controller has no listeners ------');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -44,11 +63,11 @@ class _GalleryState extends State<Gallery> {
 
     pages = [
       GalleryPage(
-          no: widget.no,
-          board: widget.board,
-          galleryPageController: galleryPageController,
+        no: widget.no,
+        board: widget.board,
+        galleryPageController: galleryPageController,
       ),
-      const GalleryGridView(), //images: context.read<ApiData>().images
+      GalleryGridView(key: galleryGridViewKey),
     ];
 
     pageController = PageController(initialPage: selectedPage);
@@ -63,15 +82,11 @@ class _GalleryState extends State<Gallery> {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<GalleryController, int>(selector: (_, apiData) {
-      return apiData.selectedGalleryIndex;
-    }, builder: (context, value, child) {
-      return PageView(
-        controller: context.read<GalleryController>().galleryController,
-        physics: const NeverScrollableScrollPhysics(),
-        children: pages,
-      );
-    });
+    return PageView(
+      controller: pageController,
+      physics: const NeverScrollableScrollPhysics(),
+      children: pages,
+    );
   }
 }
 
@@ -92,7 +107,6 @@ class GalleryPage extends StatefulWidget {
 
 class _GalleryPageState extends State<GalleryPage>
     with AutomaticKeepAliveClientMixin<GalleryPage> {
-
   bool keepAlive = false;
 
   @override
@@ -202,14 +216,13 @@ class _GalleryPageState extends State<GalleryPage>
                     )
                   : PageView.builder(
                       allowImplicitScrolling: true,
-                      controller: widget.galleryPageController, 
-                      onPageChanged: (index) {
+                      controller: widget.galleryPageController,
+                      onPageChanged: (index) async {
                         value.updateImageIndex(index);
 
                         // TODO: fix this inefficient method
                         final scrollIndex = value.getThreadIndex(index);
-                        final threadState = Thread.of(context);
-                        threadState?.updateScollPosition(scrollIndex);
+                        Thread.of(context)?.updateScrollPosition(scrollIndex);
                       },
                       itemCount: value.images.length,
                       itemBuilder: (context, index) {
@@ -261,9 +274,8 @@ class _GalleryPageState extends State<GalleryPage>
                 double position = (screenWidth / 2) *
                     (context.read<ApiData>().currentImageIndex / 2).floor();
                 // Has not listerns and does nothing on first build
-                context.read<GalleryController>().updateScrollposition(position);
-
-                context.read<GalleryController>().toggleGalleryView(1);
+                Gallery.of(context)?.updateGalleryGridScrollPosition(position);
+                Gallery.of(context)?.toggleGalleryView(1);
               },
               icon: const Icon(Icons.view_module),
             ),
@@ -323,13 +335,8 @@ class GalleryPageItem extends StatelessWidget {
 
 class GalleryGridView extends StatefulWidget {
   const GalleryGridView({
-    // required this.no,
-    //required this.images,
     Key? key,
   }) : super(key: key);
-
-  // final int no;
-  //final List<Post> images;
 
   @override
   State<GalleryGridView> createState() => _GalleryGridViewState();
@@ -337,9 +344,21 @@ class GalleryGridView extends StatefulWidget {
 
 class _GalleryGridViewState extends State<GalleryGridView>
     with AutomaticKeepAliveClientMixin<GalleryGridView> {
-
   late ScrollController scrollController;
   bool keepAlive = false;
+
+  void updateScrollposition(double position) {
+    if (scrollController.hasClients) {
+      debugPrint('------ Jumping to $position in GalleryGrid Screen ------');
+      if (position >= scrollController.position.maxScrollExtent) {
+        scrollController.jumpTo(scrollController.position.maxScrollExtent);
+      } else {
+        scrollController.jumpTo(position);
+      }
+    } else {
+      debugPrint('------ ScrollController has no listeners ------');
+    }
+  }
 
   @override
   get wantKeepAlive => keepAlive;
@@ -348,18 +367,29 @@ class _GalleryGridViewState extends State<GalleryGridView>
   @override
   void initState() {
     super.initState();
-    scrollController = context.read<GalleryController>().scrollController;
 
-    WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
-      // Can only get screenWidth after init build
-      final screenWidth = MediaQuery.of(context).size.width;
-      position = (screenWidth / 2) *
-          (context.read<ApiData>().currentImageIndex / 2).floor();
-      context.read<GalleryController>().updateScrollposition(position);
-    });
+    // WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
+    //   // Can only get screenWidth after init build
+    //   final screenWidth = MediaQuery.of(context).size.width;
+    //   position = (screenWidth / 2) *
+    //       (context.read<ApiData>().currentImageIndex / 2).floor();
+    //   context.read<GalleryController>().updateScrollposition(position);
+    // });
 
     keepAlive = true;
     updateKeepAlive();
+  }
+
+  @override
+  void didChangeDependencies() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    position = (screenWidth / 2) *
+        (context.read<ApiData>().currentImageIndex / 2).floor();
+    // TODO: fix initial offset outOfRange    
+    scrollController = ScrollController(initialScrollOffset: position);
+  
+    debugPrint('------ didChangeDependencies ------');
+    super.didChangeDependencies();
   }
 
   @override
@@ -406,9 +436,9 @@ class _GalleryGridViewState extends State<GalleryGridView>
           crossAxisSpacing: 4,
           childAspectRatio: 1 / 1,
         ),
-        itemCount: context.read<ApiData>().images.length, //widget.images.length,
+        itemCount: context.read<ApiData>().images.length, 
         itemBuilder: (context, index) {
-          final image = context.read<ApiData>().images[index]; // widget.images[index];
+          final image = context.read<ApiData>().images[index]; 
           return GridImageItem(
             image: image,
             index: index,
@@ -470,9 +500,8 @@ class GridImageItem extends StatelessWidget {
       onTap: () {
         // Open the selected image from gridview in Gallery
         context.read<ApiData>().updateImageIndex(index);
-        context.read<GalleryController>().toggleGalleryView(0);
-        //context.read<GalleryController>().updatePage(context.read<ApiData>().currentImageIndex);
-        Gallery.of(context)?.galleryPageController.jumpToPage(index);
+        Gallery.of(context)?.toggleGalleryView(0);
+        Gallery.of(context)?.updateGalleryPagePosition(index);
       },
     );
   }
